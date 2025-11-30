@@ -1,6 +1,7 @@
 import json, os
 import numpy as np
 from ActivationFunctions import ActivationFunctionFactory, softmax, sigmoid
+import multiprocessing as mp
 
 def is_one_hot(y : np.ndarray) -> bool:
         """
@@ -154,7 +155,7 @@ class NeuralNetwork:
                 correct_predictions += 1
         return correct_predictions / len(data)
     
-    def SGDTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size = 16, epochs = 1000, eta = 0.001):
+    def SGDTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size = 16, epochs = 5, eta = 0.001):
         """
         Train the network using mini-batch stochastic gradient descent.
         
@@ -209,8 +210,9 @@ class NeuralNetwork:
                 # Update weights and biases
                 self.w = [w - eta * nw for w, nw in zip(self.w, grad_w)]
                 self.b = [b - eta * nb for b, nb in zip(self.b, grad_b)]
+            
 
-    def RMSPropTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=1000, eta=0.001, beta=0.9, epsilon=1e-8):
+    def RMSPropTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=5, eta=0.001, beta=0.9, epsilon=1e-8):
         """
         Train the network using the RMSProp algorithm with mini-batching.
         
@@ -280,7 +282,7 @@ class NeuralNetwork:
                     self.w[i] -= eta / (epsilon + np.sqrt(vw[i])) * gw
                     self.b[i] -= eta / (epsilon + np.sqrt(vb[i])) * gb
 
-    def AdamWTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=1000, eta=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8, l=0.01):
+    def AdamWTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=5, eta=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8, l=0.01, verbose=False):
         """
         Train the network using adaptive moment estimation with decoupled weight
         decay (AdamW) and mini-batching.
@@ -303,6 +305,8 @@ class NeuralNetwork:
             Numerical stability constant
         l : float
             weight decay
+        verobse: bool
+            Determines if the progress is shown during training
 
         Preconditions
         -------------
@@ -351,9 +355,11 @@ class NeuralNetwork:
         mb = [np.zeros_like(b) for b in self.b]
 
         for t in range(epochs):
+            acc = self.evaluate(data)
             np.random.shuffle(data)
             batches = [data[k:k+batch_size] for k in range(0, len(data), batch_size)]
-            for batch in batches:
+            for batch_nbr, batch in enumerate(batches):
+                if verbose and batch_nbr % 100 == 0: print(f"Epoch {t+1}/{epochs} | Batch {batch_nbr}/{len(batches)} | Accuracy on training data : {acc*100:.2f}%")
                 grad_w, grad_b = self.compute_mini_batch_gradients(batch)
                 
                 for i, (gw, gb) in enumerate(zip(grad_w, grad_b)):
@@ -531,7 +537,10 @@ class NetworkManager:
             network.w = np.random.randn(network.layers[i], network.layers[i-1]) * np.sqrt(2/network.layers[i-1])
             network.b = np.zeros((network.layers[i], 1))
 
-        
+def _compute_gradients_remote(args):
+    """Worker wrapper to allow Pool.map."""
+    net, batch = args
+    return net.compute_mini_batch_gradients(batch)
     
 if __name__ == "__main__":
     # Simple test case

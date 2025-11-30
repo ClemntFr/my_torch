@@ -1,0 +1,10 @@
+{
+    "layers": [
+        769,
+        57,
+        36,
+        5
+    ],
+    "activation": "relu",
+    "wb_filepath": "SavedModels/Chess/best_so_far.npz"
+}
