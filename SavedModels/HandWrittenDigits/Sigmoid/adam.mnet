@@ -1,0 +1,10 @@
+{
+    "layers": [
+        784,
+        128,
+        64,
+        10
+    ],
+    "activation": "sigmoid",
+    "wb_filepath": "SavedModels\\HandWrittenDigits\\Sigmoid\\adam.npz"
+}

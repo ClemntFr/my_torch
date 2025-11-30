@@ -280,10 +280,10 @@ class NeuralNetwork:
                     self.w[i] -= eta / (epsilon + np.sqrt(vw[i])) * gw
                     self.b[i] -= eta / (epsilon + np.sqrt(vb[i])) * gb
 
-    def AdamTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=1000, eta=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
+    def AdamWTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=1000, eta=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8, l=0.01):
         """
-        Train the network using the adaptive moment estimation (Adam)
-        algorithm with mini-batching.
+        Train the network using adaptive moment estimation with decoupled weight
+        decay (AdamW) and mini-batching.
         
         Parameters
         ----------
@@ -301,6 +301,8 @@ class NeuralNetwork:
             Second moment decay
         epsilon : float
             Numerical stability constant
+        l : float
+            weight decay
 
         Preconditions
         -------------
@@ -321,6 +323,8 @@ class NeuralNetwork:
             First and second moment decay must be positive
         epsilon > 0
             Numerical stability constant must be positive (ideally very small)
+        l >= 0
+            Weight decay must be positive
 
         Returns
         -------
@@ -339,6 +343,7 @@ class NeuralNetwork:
         assert beta1 > 0, "First moment decay must be positive."
         assert beta2 > 0, "Second moment decay must be positive."
         assert epsilon > 0, "Numerical stability constant must be positive."
+        assert l >= 0, "Weight decay must be positive"
 
         vw = [np.zeros_like(w) for w in self.w]
         mw = [np.zeros_like(w) for w in self.w]
@@ -362,9 +367,10 @@ class NeuralNetwork:
                     mw_hat = mw[i] / (1 - beta1 ** (t+1))
                     mb_hat = mb[i] / (1 - beta1 ** (t+1))
 
+                    self.w[i] -= eta * l * self.w[i]
+
                     self.w[i] -= eta / (epsilon + np.sqrt(vw_hat)) * mw_hat
                     self.b[i] -= eta / (epsilon + np.sqrt(vb_hat)) * mb_hat
-
 
     def compute_mini_batch_gradients(self, batch: list[tuple[np.ndarray, np.ndarray]]):
         """
@@ -552,7 +558,7 @@ if __name__ == "__main__":
     print(nn.get_activations_and_logits(np.array([[1], [-1]])))
     # Training
     print("Training...")
-    nn.AdamTrain(data, 2, 1000, 0.1, 0.9, 0.9, 1e-8)
+    nn.AdamWTrain(data, batch_size=2, epochs=1000, eta=0.1, l=0.01, beta2=0.9)
 
     # After training
     for x, y in data:

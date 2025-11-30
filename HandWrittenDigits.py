@@ -98,6 +98,7 @@ if __name__ == "__main__":
         beta1=0.9
         beta2=0.999
         epsilon=1e-8
+        l=0.01
         print("Starting training with :")
         print(f"\t{len(training_data)} training samples")
         print(f"\t{batch_size} samples per batch")
@@ -106,7 +107,8 @@ if __name__ == "__main__":
         print(f"\tfirst moment decay : {beta1}")
         print(f"\tsecond moment decay : {beta2}")
         print(f"\tnumerical stability constant: {epsilon}")
-        net.AdamTrain(training_data, batch_size, epochs, eta, beta1, beta2, epsilon)
+        print(f"\tweight decay : {l}")
+        net.AdamWTrain(training_data, batch_size, epochs, eta, beta1, beta2, epsilon, l)
     
     accuracy = net.evaluate(test_data)
     print(f"Test dataset accuracy: {accuracy * 100:.2f}%")
