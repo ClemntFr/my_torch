@@ -1,0 +1,9 @@
+{
+    "layers": [
+        2,
+        5,
+        1
+    ],
+    "activation": "sigmoid",
+    "wb_filepath": "./SavedModels/XOR/xor.npz"
+}

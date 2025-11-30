@@ -90,19 +90,23 @@ if __name__ == "__main__":
     print("Activation function for output layer : softmax")
     
     if (input("Train ? (y/n): ") == 'y'):
-        epochs=100
+        epochs=2
         batch_size=32
         eta=0.001
+        beta=0.9
+        epsilon=1e-8
         print("Starting training with :")
         print(f"\t{len(training_data)} training samples")
         print(f"\t{batch_size} samples per batch")
         print(f"\t{epochs} epochs")
         print(f"\tlearning rate : {eta}")
-        net.train(training_data, batch_size, epochs, eta)
+        print(f"\tdecay rate: {beta}")
+        print(f"\tnumerical stability constant: {epsilon}")
+        net.RMSPropTrain(training_data, batch_size, epochs, eta, beta, epsilon)
     
     accuracy = net.evaluate(test_data)
     print(f"Test dataset accuracy: {accuracy * 100:.2f}%")
 
     if (input("Save ? (y/n): ") == 'y'):
         print("Saving Model...")
-        net.save_model("SavedModels/HandWrittenDigitsReLU/weights_and_biases.npz")
+        net.save_model("SavedModels/HandWrittenDigitsReLU/weights_and_biases_rmsprop.npz")

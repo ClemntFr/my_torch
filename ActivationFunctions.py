@@ -10,6 +10,10 @@ class ActivationFunction(ABC):
     def derivative(self, x):
         pass
 
+    @abstractmethod
+    def to_str(self):
+        pass
+
 class Sigmoid(ActivationFunction):
     def __call__(self, x):
         return 1 / (1 + np.exp(-x))
@@ -18,12 +22,18 @@ class Sigmoid(ActivationFunction):
         s = self.__call__(x)
         return s * (1 - s)
     
+    def to_str(self):
+        return "sigmoid"
+    
 class Identity(ActivationFunction):
     def __call__(self, x):
         return x
     
     def derivative(self, x):
         return 1
+
+    def to_str(self):
+        return "identity"
     
 class ReLU(ActivationFunction):
     def __call__(self, x):
@@ -33,6 +43,9 @@ class ReLU(ActivationFunction):
         # Derivative of ReLU is 1 for x > 0, else 0
         # Should ideally handle x == 0 case, but for simplicity we treat it as 0
         return (x > 0).astype(float)
+
+    def to_str(self):
+        return "relu"
     
 class ActivationFunctionFactory:
     @staticmethod

@@ -1,18 +1,38 @@
+import json, os
 import numpy as np
 from ActivationFunctions import ActivationFunctionFactory, softmax, sigmoid
+
+def is_one_hot(y : np.ndarray) -> bool:
+        """
+        Check if the target vector is one-hot encoded.
+        
+        Parameters
+        ----------
+        y : np.ndarray
+            Target vector.
+
+        Preconditions
+        -------------
+        Assumes it is called within the context of a training method,
+        so y has the correct shape for multi-class classification.
+
+        Returns
+        -------
+        bool
+            True if y is one-hot encoded, False otherwise.
+        """
+        return np.sum(y) == 1 and np.all((y == 0) | (y == 1))
 
 class NeuralNetwork:
     """
         Standard feedforward neural network with multiple hidden layers.
         Uses softmax activation for output layer, multi-class cross-entropy as the loss function
-        and supports different activation functions for hidden layers.
+        and supports different activation functions for hidden layers (defaults to ReLU).
 
         Member variables
         ----------------
-        input_size : int.
-            Number of input features.
-        output_size : int.
-            Number of output classes.
+        layers : list[int]
+            Number of neurons by layer including the input and output layers
         w : list[np.ndarray].
             Weights for each layer stored as 2D matrices.
         b : list[np.ndarray].
@@ -24,12 +44,11 @@ class NeuralNetwork:
         multi_class_classification : bool.
             True if the network is used for multi-class classification, False for binary classification.
     """
-    def __init__(self, layers : list[int], activation="sigmoid", weights=None, biases=None) -> None:
+    def __init__(self, layers : list[int], activation="relu", weights=None, biases=None) -> None:
         """
         Initialize the weights, biases and activation functions of the network.
-        Weights are initialized randomly using a normal distribution
-        and biases are initialized to zero unless predefined weights and biases
-        are given
+        Weights are initialized randomly using HE initialization and biases are 
+        initialized to zero unless predefined weights and biases are given.
         
         Parameters
         ----------
@@ -72,55 +91,6 @@ class NeuralNetwork:
             self.last_layer_activation = softmax
         else:
             self.last_layer_activation = sigmoid
-
-    def randomize_model(self):
-        """
-        Re-initialize the weights and biases of the network randomly.
-        Weights are initialized randomly using a normal distribution
-        and biases are initialized to zero.
-        """
-        layers = self.layers
-        self.w = [np.random.randn(layers[i], layers[i-1]) * np.sqrt(2/layers[i-1]) for i in range(1, len(layers))]
-        self.b = [np.zeros((layers[i], 1)) for i in range(1, len(layers))]
-
-    def save_model(self, wb_filepath: str):
-        """
-        Save the model's parametters to .npz files.
-        
-        Parameters
-        ----------
-        weights_filepath : str
-            File path to save the weights.
-        biases_filepath : str
-            File path to save the biases.
-        
-        Preconditions
-        -------------
-        Assumes weights_filepath and biases_filepath are valid file paths.
-        """
-        np.savez(wb_filepath,
-         **{f"W{i}": w for i, w in enumerate(self.w)},
-         **{f"B{i}": b for i, b in enumerate(self.b)})
-
-    def load_model(self, wb_filepath):
-        """
-        Load the model's weights and biases from .npy files.
-        
-        Parameters
-        ----------
-        weights_filepath : str
-            File path to load the weights from.
-        biases_filepath : str
-            File path to load the biases from.
-        
-        Preconditions
-        -------------
-        Assumes weights_filepath and biases_filepath are valid file paths
-        and the files contain compatible weights and biases.
-        """
-        params = np.load(wb_filepath)
-        self.w = [params[f"W{i}"] for i in range(len(self.w))]
-        self.b = [params[f"B{i}"] for i in range(len(self.b))]
 
     def feedforward(self, a: np.ndarray) -> np.ndarray:
         """
@@ -171,7 +141,7 @@ class NeuralNetwork:
         assert all(x.shape == (self.layers[0], 1) for x, _ in data), "Input shape does not match network input layer size."
         assert all(y.shape == (self.layers[-1], 1) for _, y in data), "Target shape does not match network output layer size."
         if self.multi_class_classification:
-            assert all(self._is_one_hot(y) for _, y in data), "Targets must be one-hot encoded for multi-class classification."
+            assert all(is_one_hot(y) for _, y in data), "Targets must be one-hot encoded for multi-class classification."
         else:
             assert all(y[0, 0] in {0, 1} for _, y in data), "Targets must be binary (0 or 1) for binary classification."
 
@@ -184,29 +154,7 @@ class NeuralNetwork:
                 correct_predictions += 1
         return correct_predictions / len(data)
     
-    def _is_one_hot(self, y : np.ndarray) -> bool:
-        """
-        Check if the target vector is one-hot encoded.
-        
-        Parameters
-        ----------
-        y : np.ndarray
-            Target vector.
-
-        Preconditions
-        -------------
-        Assumes it is called within the context of the train method,
-        so y has the correct shape for multi-class classification.
-
-        Returns
-        -------
-        bool
-            True if y is one-hot encoded, False otherwise.
-        """
-        return np.sum(y) == 1 and np.all((y == 0) | (y == 1))
-    
-    
-    def train(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size : int = 16, epochs: int = 1000, eta: float = 0.1):
+    def SGDTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size = 16, epochs = 1000, eta = 0.001):
         """
         Train the network using mini-batch stochastic gradient descent.
         
@@ -245,7 +193,7 @@ class NeuralNetwork:
         assert all(x.shape == (self.layers[0], 1) for x, _ in data), "Input shape does not match network input layer size."
         assert all(y.shape == (self.layers[-1], 1) for _, y in data), "Target shape does not match network output layer size."
         if self.multi_class_classification:
-            assert all(self._is_one_hot(y) for _, y in data), "Targets must be one-hot encoded for multi-class classification."
+            assert all(is_one_hot(y) for _, y in data), "Targets must be one-hot encoded for multi-class classification."
         else:
             assert all(y[0, 0] in {0, 1} for _, y in data), "Targets must be binary (0 or 1) for binary classification."
         assert batch_size > 0, "Batch size must be positive."
@@ -262,7 +210,62 @@ class NeuralNetwork:
                 self.w = [w - eta * nw for w, nw in zip(self.w, grad_w)]
                 self.b = [b - eta * nb for b, nb in zip(self.b, grad_b)]
 
-    def RMSProp(self, data, batch_size, epochs, eta=0.1, beta=0.9, epsilon=1e-8):
+    def RMSPropTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=1000, eta=0.001, beta=0.9, epsilon=1e-8):
+        """
+        Train the network using the RMSProp algorithm with mini-batching.
+        
+        Parameters
+        ----------
+        data : list[tuple[np.array, np.array]]
+            Training data as a list of (input, target) tuples.
+        batch_size : int
+            Size of each mini-batch.
+        epochs : int
+            Number of epochs to train.
+        eta : float
+            Learning rate.
+        beta : float
+            Decay rate
+        epsilon : float
+            Numerical stability constant
+
+        Preconditions
+        -------------
+        data is not empty
+            There must be training data provided.
+        data[i][0].shape == (n, 1) where n is the number of input neurons
+            Each input must match the input layer size.
+        data[i][1].shape == (m, 1) where m is the number of output neurons
+            Each target must match the output layer size.
+        data[i][1] contains valid target values (e.g., one-hot encoded for multi-class or binary for binary classification)
+        batch_size > 0
+            Batch size must be positive.
+        epochs > 0
+            Number of epochs must be positive.
+        eta > 0
+            Learning rate must be positive.
+        beta > 0
+            Decay rate must be positive
+        epsilon > 0
+            Numerical stability constant must be positive (ideally very small)
+
+        Returns
+        -------
+        Nothing. Updates weights and biases in place.
+        """
+        assert len(data) > 0, "Training data must not be empty."
+        assert all(x.shape == (self.layers[0], 1) for x, _ in data), "Input shape does not match network input layer size."
+        assert all(y.shape == (self.layers[-1], 1) for _, y in data), "Target shape does not match network output layer size."
+        if self.multi_class_classification:
+            assert all(is_one_hot(y) for _, y in data), "Targets must be one-hot encoded for multi-class classification."
+        else:
+            assert all(y[0, 0] in {0, 1} for _, y in data), "Targets must be binary (0 or 1) for binary classification."
+        assert batch_size > 0, "Batch size must be positive."
+        assert epochs > 0, "Number of epochs must be positive."
+        assert eta > 0, "Learning rate must be positive."
+        assert beta > 0, "Decay rate must be positive."
+        assert epsilon > 0, "Numerical stability constant must be positive."
+
         vw = [np.zeros_like(w) for w in self.w]
         vb = [np.zeros_like(b) for b in self.b]
         for _ in range(epochs):
@@ -290,7 +293,7 @@ class NeuralNetwork:
 
         Preconditions
         -------------
-        Assumes this function is called within the context of the train method,
+        Assumes this function is called within the context of a training method,
         so the batch is non-empty and inputs/targets have correct shapes / encoding.
 
         Returns
@@ -379,6 +382,66 @@ class NeuralNetwork:
         
         return grad_w, grad_b
     
+class NetworkManager:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def save_network(net : NeuralNetwork, filepath : str):
+        """
+        Saves the neural network to a .mnet metafile containing
+        every data about the network except the weights and biases which
+        are stored to a .npz file in the same directory
+        """
+        path, _ = os.path.splitext(filepath)
+
+        metapath = path + ".mnet"
+        wb_filepath = path + ".npz"
+        net_dict = {
+            "layers" : net.layers, 
+            "activation" : net.activation.to_str(), 
+            "wb_filepath" : wb_filepath
+        }
+        json_str = json.dumps(net_dict, indent=4)
+
+        # Saving hyperparametters
+        with open(metapath, 'w') as network_metafile:
+            network_metafile.write(json_str)
+
+        # Saving weights and biases
+        np.savez(wb_filepath,
+         **{f"W{i}": w for i, w in enumerate(net.w)},
+         **{f"B{i}": b for i, b in enumerate(net.b)})
+        
+    @staticmethod
+    def load_network(metapath : str):
+        # Loading metadata
+        with open(metapath, 'r') as network_metafile:
+            network_data = json.load(network_metafile)
+
+        # Initializing new network
+        network = NeuralNetwork(network_data["layers"], network_data["activation"])
+
+        # Setting up weights and biases
+        params = np.load(network_data["wb_filepath"])
+        network.w = [params[f"W{i}"] for i in range(len(network.w))]
+        network.b = [params[f"B{i}"] for i in range(len(network.b))]
+
+        return network
+    
+    @staticmethod
+    def randomize_network(network : NeuralNetwork):
+        """
+        Re-initializes the weights and biases of the network
+        Weights are initialized randomly using He initialization
+        and biases are set to zero.
+        """
+        for i in range(1, len(network.layers)):
+            network.w = np.random.randn(network.layers[i], network.layers[i-1]) * np.sqrt(2/network.layers[i-1])
+            network.b = np.zeros((network.layers[i], 1))
+
+        
+    
 if __name__ == "__main__":
     # Simple test case
     nn = NeuralNetwork(layers=[2, 5, 1], activation="sigmoid")
@@ -404,10 +467,21 @@ if __name__ == "__main__":
     print(nn.get_activations_and_logits(np.array([[1], [-1]])))
     # Training
     print("Training...")
-    nn.RMSProp(data, 2, 1000, 0.1, 0.9, 1e-8)
+    nn.RMSPropTrain(data, 2, 1000, 0.1, 0.9, 1e-8)
 
     # After training
     for x, y in data:
         output = nn.feedforward(x)
         print(f"Input: {x.ravel()}, Target: {y.ravel()}, Output after training: {output.ravel()}")
+
+    path = "./SavedModels/XOR/xor.mnet"
+    print("Saving to: " + path)
+    NetworkManager.save_network(nn, path)
+
+    print("Loading back...")
+    newnet = NetworkManager.load_network(path)
+
+    for x, y in data:
+        output = nn.feedforward(x)
+        print(f"Input: {x.ravel()}, Target: {y.ravel()}, Output of the loaded network: {output.ravel()}")
     
