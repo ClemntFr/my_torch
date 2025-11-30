@@ -3,7 +3,7 @@ import struct
 from array import array
 from os.path  import join
 
-from Network import NeuralNetwork
+from Network import NeuralNetwork, NetworkManager
 
 #
 # MNIST Data Loader Class
@@ -79,14 +79,16 @@ if __name__ == "__main__":
     print("Preprocessing done.")
 
     # ----------- Actual Neural Network shit -----------
-    print("Creating Network...")
-    layers=[784, 128, 64, 10]
-    activation="ReLU"
-    net = NeuralNetwork(layers, activation)
     if (input("Load past model ? (y/n): ") == 'y'):
-        net.load_model("SavedModels/HandWrittenDigitsReLU/weights_and_biases.npz")
-    print("Layer sizes :", layers)
-    print("Activation function for hidden layers :", activation)
+        net = NetworkManager.load_network(input("Model metafile path (*.mnet): "))
+    else:
+        print("Creating Network...")
+        layers=[784, 128, 64, 10]
+        activation="ReLU"
+        net = NeuralNetwork(layers, activation)
+
+    print("Layer sizes :", net.layers)
+    print("Activation function for hidden layers :", net.activation.to_str())
     print("Activation function for output layer : softmax")
     
     if (input("Train ? (y/n): ") == 'y'):
@@ -108,5 +110,4 @@ if __name__ == "__main__":
     print(f"Test dataset accuracy: {accuracy * 100:.2f}%")
 
     if (input("Save ? (y/n): ") == 'y'):
-        print("Saving Model...")
-        net.save_model("SavedModels/HandWrittenDigitsReLU/weights_and_biases_rmsprop.npz")
+        NetworkManager.save_network(net, input("Where to save ? "))
