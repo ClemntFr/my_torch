@@ -256,17 +256,21 @@ class NeuralNetwork:
             np.random.shuffle(data)
             batches = [data[k:k + batch_size] for k in range(0, len(data), batch_size)]
             for batch in batches:
-                self.update_mini_batch(batch, eta)
+                grad_w, grad_b = self.compute_mini_batch_gradients(batch)
+
+                # Update weights and biases
+                self.w = [w - eta * nw for w, nw in zip(self.w, grad_w)]
+                self.b = [b - eta * nb for b, nb in zip(self.b, grad_b)]
 
     def RMSProp(self, data, batch_size, epochs, eta=0.1, beta=0.9, epsilon=1e-8):
-        x, y = data[0]
-        grad_w, grad_b = self.backpropagate(x, y)
-        vw = [np.zeros_like(gw) for gw in grad_w]
-        vb = [np.zeros_like(gb) for gb in grad_b]
+        vw = [np.zeros_like(w) for w in self.w]
+        vb = [np.zeros_like(b) for b in self.b]
         for _ in range(epochs):
             np.random.shuffle(data)
-            for x, y in data:
-                grad_w, grad_b = self.backpropagate(x, y)
+            batches = [data[k:k+batch_size] for k in range(0, len(data), batch_size)]
+            for batch in batches:
+                grad_w, grad_b = self.compute_mini_batch_gradients(batch)
+                
                 for i, (gw, gb) in enumerate(zip(grad_w, grad_b)):
                     vw[i] = beta*vw[i] + (1-beta) * (gw ** 2)
                     vb[i] = beta*vb[i] + (1-beta) * (gb ** 2)
@@ -274,17 +278,15 @@ class NeuralNetwork:
                     self.b[i] -= eta / (epsilon + np.sqrt(vb[i])) * gb
 
 
-    def update_mini_batch(self, batch: list[tuple[np.ndarray, np.ndarray]], eta: float):
+    def compute_mini_batch_gradients(self, batch: list[tuple[np.ndarray, np.ndarray]]):
         """
-        Update the network's weights and biases by applying
-        gradient descent using backpropagation to a single mini batch.
+        Compute the loss function's mean gradients relative to the weights and
+        biases of the network over single mini batch.
 
         Parameters
         ----------
         batch : list[tuple[np.array, np.array]]
             A mini-batch of training data as a list of (input, target) tuples.
-        eta : float
-            Learning rate.
 
         Preconditions
         -------------
@@ -293,7 +295,8 @@ class NeuralNetwork:
 
         Returns
         -------
-        Nothing. Updates weights and biases in place.
+        tuple[np.ndarray, np.ndarray]
+            Gradient of the loss function relative to weights and biases
         """
         grad_w = [np.zeros_like(w) for w in self.w]
         grad_b = [np.zeros_like(b) for b in self.b]
@@ -302,10 +305,11 @@ class NeuralNetwork:
             dgrad_w, dgrad_b = self.backpropagate(x, y)
             grad_w = [gw + dgw for gw, dgw in zip(grad_w, dgrad_w)]
             grad_b = [gb + dgb for gb, dgb in zip(grad_b, dgrad_b)]
+
+        grad_w = [gw/len(batch) for gw in grad_w]
+        grad_b = [gb/len(batch) for gb in grad_b]
         
-        # Update weights and biases
-        self.w = [w - (eta / len(batch)) * nw for w, nw in zip(self.w, grad_w)]
-        self.b = [b - (eta / len(batch)) * nb for b, nb in zip(self.b, grad_b)]
+        return grad_w, grad_b
 
     def get_activations_and_logits(self, a: np.ndarray) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
