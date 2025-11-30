@@ -92,19 +92,21 @@ if __name__ == "__main__":
     print("Activation function for output layer : softmax")
     
     if (input("Train ? (y/n): ") == 'y'):
-        epochs=2
+        epochs=10
         batch_size=32
         eta=0.001
-        beta=0.9
+        beta1=0.9
+        beta2=0.999
         epsilon=1e-8
         print("Starting training with :")
         print(f"\t{len(training_data)} training samples")
         print(f"\t{batch_size} samples per batch")
         print(f"\t{epochs} epochs")
         print(f"\tlearning rate : {eta}")
-        print(f"\tdecay rate: {beta}")
+        print(f"\tfirst moment decay : {beta1}")
+        print(f"\tsecond moment decay : {beta2}")
         print(f"\tnumerical stability constant: {epsilon}")
-        net.RMSPropTrain(training_data, batch_size, epochs, eta, beta, epsilon)
+        net.AdamTrain(training_data, batch_size, epochs, eta, beta1, beta2, epsilon)
     
     accuracy = net.evaluate(test_data)
     print(f"Test dataset accuracy: {accuracy * 100:.2f}%")

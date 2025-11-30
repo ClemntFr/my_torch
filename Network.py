@@ -280,6 +280,91 @@ class NeuralNetwork:
                     self.w[i] -= eta / (epsilon + np.sqrt(vw[i])) * gw
                     self.b[i] -= eta / (epsilon + np.sqrt(vb[i])) * gb
 
+    def AdamTrain(self, data: list[tuple[np.ndarray, np.ndarray]], batch_size=16, epochs=1000, eta=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
+        """
+        Train the network using the adaptive moment estimation (Adam)
+        algorithm with mini-batching.
+        
+        Parameters
+        ----------
+        data : list[tuple[np.array, np.array]]
+            Training data as a list of (input, target) tuples.
+        batch_size : int
+            Size of each mini-batch.
+        epochs : int
+            Number of epochs to train.
+        eta : float
+            Learning rate.
+        beta1 : float
+            First moment decay
+        beta2 : float
+            Second moment decay
+        epsilon : float
+            Numerical stability constant
+
+        Preconditions
+        -------------
+        data is not empty
+            There must be training data provided.
+        data[i][0].shape == (n, 1) where n is the number of input neurons
+            Each input must match the input layer size.
+        data[i][1].shape == (m, 1) where m is the number of output neurons
+            Each target must match the output layer size.
+        data[i][1] contains valid target values (e.g., one-hot encoded for multi-class or binary for binary classification)
+        batch_size > 0
+            Batch size must be positive.
+        epochs > 0
+            Number of epochs must be positive.
+        eta > 0
+            Learning rate must be positive.
+        beta1 > 0 and beta2 > 0
+            First and second moment decay must be positive
+        epsilon > 0
+            Numerical stability constant must be positive (ideally very small)
+
+        Returns
+        -------
+        Nothing. Updates weights and biases in place.
+        """
+        assert len(data) > 0, "Training data must not be empty."
+        assert all(x.shape == (self.layers[0], 1) for x, _ in data), "Input shape does not match network input layer size."
+        assert all(y.shape == (self.layers[-1], 1) for _, y in data), "Target shape does not match network output layer size."
+        if self.multi_class_classification:
+            assert all(is_one_hot(y) for _, y in data), "Targets must be one-hot encoded for multi-class classification."
+        else:
+            assert all(y[0, 0] in {0, 1} for _, y in data), "Targets must be binary (0 or 1) for binary classification."
+        assert batch_size > 0, "Batch size must be positive."
+        assert epochs > 0, "Number of epochs must be positive."
+        assert eta > 0, "Learning rate must be positive."
+        assert beta1 > 0, "First moment decay must be positive."
+        assert beta2 > 0, "Second moment decay must be positive."
+        assert epsilon > 0, "Numerical stability constant must be positive."
+
+        vw = [np.zeros_like(w) for w in self.w]
+        mw = [np.zeros_like(w) for w in self.w]
+        vb = [np.zeros_like(b) for b in self.b]
+        mb = [np.zeros_like(b) for b in self.b]
+
+        for t in range(epochs):
+            np.random.shuffle(data)
+            batches = [data[k:k+batch_size] for k in range(0, len(data), batch_size)]
+            for batch in batches:
+                grad_w, grad_b = self.compute_mini_batch_gradients(batch)
+                
+                for i, (gw, gb) in enumerate(zip(grad_w, grad_b)):
+                    vw[i] = beta2*vw[i] + (1-beta2) * (gw ** 2)
+                    vb[i] = beta2*vb[i] + (1-beta2) * (gb ** 2)
+                    mw[i] = beta1*mw[i] + (1-beta1) * gw
+                    mb[i] = beta1*mb[i] + (1-beta1) * gb
+
+                    vw_hat = vw[i] / (1 - beta2 ** (t+1))
+                    vb_hat = vb[i] / (1 - beta2 ** (t+1))
+                    mw_hat = mw[i] / (1 - beta1 ** (t+1))
+                    mb_hat = mb[i] / (1 - beta1 ** (t+1))
+
+                    self.w[i] -= eta / (epsilon + np.sqrt(vw_hat)) * mw_hat
+                    self.b[i] -= eta / (epsilon + np.sqrt(vb_hat)) * mb_hat
+
 
     def compute_mini_batch_gradients(self, batch: list[tuple[np.ndarray, np.ndarray]]):
         """
@@ -467,7 +552,7 @@ if __name__ == "__main__":
     print(nn.get_activations_and_logits(np.array([[1], [-1]])))
     # Training
     print("Training...")
-    nn.RMSPropTrain(data, 2, 1000, 0.1, 0.9, 1e-8)
+    nn.AdamTrain(data, 2, 1000, 0.1, 0.9, 0.9, 1e-8)
 
     # After training
     for x, y in data:

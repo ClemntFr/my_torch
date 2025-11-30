@@ -6,5 +6,5 @@
         10
     ],
     "activation": "relu",
-    "wb_filepath": "SavedModels\\HandWrittenDigits\\ReLU\\first.npz"
+    "wb_filepath": "SavedModels\\HandWrittenDigits\\ReLU\\adam.npz"
 }
