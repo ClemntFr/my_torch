@@ -258,6 +258,22 @@ class NeuralNetwork:
             for batch in batches:
                 self.update_mini_batch(batch, eta)
 
+    def RMSProp(self, data, batch_size, epochs, eta=0.1, beta=0.9, epsilon=1e-8):
+        x, y = data[0]
+        grad_w, grad_b = self.backpropagate(x, y)
+        vw = [np.zeros_like(gw) for gw in grad_w]
+        vb = [np.zeros_like(gb) for gb in grad_b]
+        for _ in range(epochs):
+            np.random.shuffle(data)
+            for x, y in data:
+                grad_w, grad_b = self.backpropagate(x, y)
+                for i, (gw, gb) in enumerate(zip(grad_w, grad_b)):
+                    vw[i] = beta*vw[i] + (1-beta) * (gw ** 2)
+                    vb[i] = beta*vb[i] + (1-beta) * (gb ** 2)
+                    self.w[i] -= eta / (epsilon + np.sqrt(vw[i])) * gw
+                    self.b[i] -= eta / (epsilon + np.sqrt(vb[i])) * gb
+
+
     def update_mini_batch(self, batch: list[tuple[np.ndarray, np.ndarray]], eta: float):
         """
         Update the network's weights and biases by applying
@@ -384,7 +400,7 @@ if __name__ == "__main__":
     print(nn.get_activations_and_logits(np.array([[1], [-1]])))
     # Training
     print("Training...")
-    nn.train(data, batch_size=2, epochs=10000, eta=0.1)
+    nn.RMSProp(data, 2, 1000, 0.1, 0.9, 1e-8)
 
     # After training
     for x, y in data:
